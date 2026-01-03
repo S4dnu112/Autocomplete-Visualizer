@@ -1,0 +1,86 @@
+/* Basic page styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#viz-container,
+#viz-container-mini {
+    width: 100%;
+    height: 100%;
+    background-color: #ffffff;
+    overflow: hidden;
+    cursor: grab;
+}
+
+#viz-container:active,
+#viz-container-mini:active {
+    cursor: grabbing;
+}
+
+/* Custom scrollbar */
+.word-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.word-list-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+/* D3 Visualization Styles */
+
+/* Default Node Styling */
+.node circle {
+    fill: #bfdbfe;
+    stroke: #3b82f6;
+    stroke-width: 2px;
+    transition: all 0.3s ease;
+}
+
+/* Inner ring for the double-circle effect on end nodes */
+.node .inner-ring {
+    fill: none;
+    stroke-width: 2px;
+}
+
+.node text {
+    font: 12px sans-serif;
+    text-anchor: middle;
+    pointer-events: none;
+    fill: #1e293b;
+    font-weight: bold;
+}
+
+.link {
+    fill: none;
+    stroke: #93c5fd;
+    stroke-width: 1.5px;
+    transition: all 0.3s ease;
+}
+
+/* Edge Labels (Characters on lines) */
+.edge-label {
+    font: 11px sans-serif;
+    fill: #475569;
+    font-weight: bold;
+    paint-order: stroke;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    user-select: none;
+}
+
+/* Active / Highlight Classes */
+.node.active circle {
+    fill: #fb923c !important;
+    stroke: #c2410c !important;
+}
+
+.node.active .inner-ring {
+    fill: none !important;
+    stroke: #c2410c !important;
+}
+
+.link.active {
+    stroke: #ea580c !important;
+    stroke-width: 3px;
+}
