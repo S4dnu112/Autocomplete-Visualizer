@@ -251,50 +251,56 @@ let visualizer;
 let visualizerMini;
 let currentPathIds = new Set();
 
-const initialWords = ['ant', 'art', 'bat', 'bar', 'code', 'cob'];
-
 window.onload = () => {
     visualizer = new TrieVisualizer('viz-container');
     visualizerMini = new TrieVisualizer('viz-container-mini');
 
-    initialWords.forEach(w => trie.insert(w));
-
     updateWordListUI();
     updateGraph();
     visualizer.resetZoom();
 
-    document.getElementById('newWordInput').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') addWord();
-    });
-
-    document.getElementById('addWordBtn').addEventListener('click', addWord);
-    document.getElementById('resetBtn').addEventListener('click', resetTrie);
+    document.getElementById('submitWordsBtn').addEventListener('click', submitWordBatch);
+    document.getElementById('resetBtnTop').addEventListener('click', resetTrie);
+    document.getElementById('resetViewBtn').addEventListener('click', resetView);
     document.getElementById('searchInput').addEventListener('input', handleInput);
 };
 
-function addWord() {
-    const input = document.getElementById('newWordInput');
-    const word = input.value.trim();
-
-    if (word && /^[a-zA-Z]+$/.test(word)) {
-        trie.insert(word);
-        input.value = '';
-        updateWordListUI();
-        updateGraph();
-    } else if (word) {
-        alert("Letters only, please.");
-    }
+function setUIState(state) {
+    const isSubmitted = state === 'submitted';
+    const hideOnSubmit = ['submitHeading', 'bulkWordsInput', 'submitWordsBtn'];
+    const showOnSubmit = ['resetBtnTop', 'currentWordsSection', 'divider', 'autocompleteSection'];
+    
+    hideOnSubmit.forEach(id => document.getElementById(id).classList.toggle('hidden', isSubmitted));
+    showOnSubmit.forEach(id => document.getElementById(id).classList.toggle('hidden', !isSubmitted));
 }
 
-function resetTrie() {
-    trie = new Trie();
-    currentPathIds.clear();
-    document.getElementById('searchInput').value = '';
-    document.getElementById('matchesText').innerText = '-';
+function submitWordBatch() {
+    const input = document.getElementById('bulkWordsInput');
+    const raw = input.value;
+
+    const words = raw
+        .split(/[^a-zA-Z]+/)
+        .map(w => w.trim().toLowerCase())
+        .filter(Boolean);
+
+    if (words.length === 0) {
+        alert("Please enter at least one word.");
+        return;
+    }
+
+    const invalid = words.filter(w => !/^[a-z]+$/.test(w));
+    if (invalid.length > 0) {
+        const uniqInvalid = Array.from(new Set(invalid));
+        alert(`Only letters are allowed. Invalid entries: ${uniqInvalid.join(', ')}`);
+        return;
+    }
+
+    words.forEach(w => trie.insert(w));
     updateWordListUI();
     updateGraph();
-    visualizer.resetZoom();
-    visualizerMini.resetZoom();
+    
+    setUIState('submitted');
+    document.getElementById('searchInput').focus();
 }
 
 window.selectMatch = function (word) {
@@ -336,10 +342,38 @@ function updateWordListUI() {
     const container = document.getElementById('wordList');
     container.innerHTML = '';
 
-    Array.from(trie.words).sort().forEach(word => {
+    const sorted = Array.from(trie.words).sort();
+
+    if (sorted.length === 0) {
+        container.innerHTML = '<span class="text-gray-400 text-xs">No words submitted.</span>';
+        return;
+    }
+
+    sorted.forEach(word => {
         const badge = document.createElement('span');
         badge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200";
         badge.innerText = word;
         container.appendChild(badge);
     });
+}
+
+function resetTrie() {
+    trie = new Trie();
+    currentPathIds.clear();
+    
+    document.getElementById('bulkWordsInput').value = '';
+    document.getElementById('searchInput').value = '';
+    document.getElementById('matchesText').innerText = '-';
+    
+    setUIState('initial');
+    updateWordListUI();
+    updateGraph();
+    visualizer.resetZoom();
+    visualizerMini.resetZoom();
+    document.getElementById('bulkWordsInput').focus();
+}
+
+function resetView() {
+    visualizer.resetZoom();
+    visualizerMini.resetZoom();
 }

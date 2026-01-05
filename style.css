@@ -3,6 +3,10 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+.hidden {
+    display: none !important;
+}
+
 #viz-container,
 #viz-container-mini {
     width: 100%;
@@ -41,6 +45,16 @@ body {
 .node .inner-ring {
     fill: none;
     stroke-width: 2px;
+}
+
+/* End Word Node Styling */
+.node.is-end circle {
+    fill: #86efac;
+    stroke: #22c55e;
+}
+
+.node.is-end .inner-ring {
+    stroke: #22c55e;
 }
 
 .node text {

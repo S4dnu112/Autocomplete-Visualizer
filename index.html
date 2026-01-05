@@ -22,13 +22,13 @@
             </div>
             <div class="text-xs text-gray-400 flex gap-3">
                 <div class="flex items-center"><span
-                        class="w-3 h-3 bg-gray-200 rounded-full border border-gray-400 mr-1"></span> Node</div>
+                        class="w-3 h-3 rounded-full border-2 mr-1" style="background-color: #bfdbfe; border-color: #3b82f6;"></span> Intermediate</div>
                 <div class="flex items-center">
                     <span
-                        class="w-3 h-3 bg-gray-200 rounded-full border border-gray-400 mr-1 relative flex items-center justify-center">
-                        <span class="w-1.5 h-1.5 border border-gray-500 rounded-full absolute"></span>
+                        class="w-3 h-3 rounded-full border-2 mr-1 relative flex items-center justify-center" style="background-color: #86efac; border-color: #22c55e;">
+                        <span class="w-1.5 h-1.5 border-2 rounded-full absolute" style="border-color: #22c55e;"></span>
                     </span>
-                    End Word (Double Circle)
+                    End Word
                 </div>
                 <div class="flex items-center"><span
                         class="w-3 h-3 bg-orange-400 rounded-full border border-orange-600 mr-1"></span> Active Path
@@ -41,34 +41,22 @@
 
         <!-- Controls Sidebar -->
         <aside
-            class="w-full lg:w-1/4 bg-white border-r border-gray-200 flex flex-col p-6 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+            class="w-full lg:w-1/4 bg-white border-r border-gray-200 flex flex-col p-6 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 overflow-y-auto">
 
             <!-- Add Words Section -->
             <div class="mb-6">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-3">1. Build Dictionary</h2>
-                <div class="flex gap-2 mb-2">
-                    <input type="text" id="newWordInput" placeholder="Add word (e.g. 'code')"
-                        class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    <button id="addWordBtn"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                        Add
-                    </button>
-                </div>
-                <p class="text-xs text-gray-400 mb-4">Press Enter to add.</p>
-
-                <h3 class="text-xs font-semibold text-gray-600 mb-2">Current Words:</h3>
-                <div class="word-list-container h-32 overflow-y-auto border border-gray-100 rounded bg-gray-50 p-2">
-                    <div id="wordList" class="flex flex-wrap gap-2">
-                        <!-- Words injected here -->
-                    </div>
-                </div>
+                <h2 id="submitHeading" class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-3">Submit Word List</h2>
+                <textarea id="bulkWordsInput" rows="6" placeholder="Enter words separated by commas or new lines"
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"></textarea>
+                <button id="submitWordsBtn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400">
+                    Submit Words
+                </button>
             </div>
 
-            <hr class="border-gray-100 mb-6">
-
             <!-- Simulation Section -->
-            <div class="mb-6">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-3">2. Test Autocomplete</h2>
+            <div class="mb-6 hidden" id="autocompleteSection">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-3">Test Autocomplete</h2>
                 <div class="relative">
                     <input type="text" id="searchInput" placeholder="Type to traverse..."
                         class="w-full border-2 border-indigo-100 rounded-lg px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 placeholder-gray-300">
@@ -80,17 +68,25 @@
                         </svg>
                     </div>
                 </div>
-                <div id="suggestionBox" class="mt-2 text-sm text-gray-600 min-h-[20px]">
+                <div class="mt-2 text-sm text-gray-600 min-h-[20px]">
                     Matches: <span class="font-mono text-indigo-600" id="matchesText">-</span>
                 </div>
             </div>
 
-            <div class="mt-auto">
-                <button id="resetBtn"
-                    class="w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 transition-colors">
-                    Clear All Words
-                </button>
+            <hr class="border-gray-100 mb-6 hidden" id="divider">
+
+            <div id="currentWordsSection" class="hidden">
+                <h3 class="text-xs font-semibold text-gray-600 mb-2">Current Words:</h3>
+                <div class="word-list-container h-32 overflow-y-auto border border-gray-100 rounded bg-gray-50 p-2 mb-6">
+                    <div id="wordList" class="flex flex-wrap gap-2 text-gray-400 text-xs">
+                        Awaiting submission...
+                    </div>
+                </div>
             </div>
+
+            <button id="resetBtnTop" class="hidden w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded border border-red-200 transition-colors">
+                Clear All Words
+            </button>
         </aside>
 
         <!-- Visualization Area -->
@@ -112,8 +108,12 @@
             </div>
 
             <!-- Legend/Instructions -->
+            <button id="resetViewBtn" 
+                class="absolute bottom-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded shadow border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-white transition-colors cursor-pointer">
+                Reset View
+            </button>
             <div
-                class="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded shadow border border-gray-200 text-xs max-w-xs hidden md:block pointer-events-none">
+                class="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded shadow border border-gray-200 text-xs max-w-xs pointer-events-none">
                 <p class="font-semibold mb-1">Interactive Controls:</p>
                 <ul class="list-disc list-inside text-gray-600 space-y-1">
                     <li>Scroll to Zoom</li>
