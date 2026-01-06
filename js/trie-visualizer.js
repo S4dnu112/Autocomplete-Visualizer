@@ -4,7 +4,7 @@ class TrieVisualizer {
         this.countElement = document.getElementById(countElementId);
         this.width = this.container.clientWidth;
         this.height = this.container.clientHeight;
-        this.currentPathIds = new Set();
+        this.activeData = { nodes: new Set(), edges: new Set() }; // Changed structure
         this.hasCentered = false;
         this.initD3();
     }
@@ -40,8 +40,9 @@ class TrieVisualizer {
         this.hasCentered = false;
     }
 
-    updateGraph(trieStructure, pathIds) {
-        this.currentPathIds = pathIds || new Set();
+    // UPDATED: Expects { nodes: Set, edges: Set }
+    updateGraph(trieStructure, activeData) {
+        this.activeData = activeData || { nodes: new Set(), edges: new Set() };
 
         if (!trieStructure || !trieStructure.root) {
             this.innerG.selectAll("*").remove();
@@ -49,7 +50,6 @@ class TrieVisualizer {
             return;
         }
 
-        // FIX 1: Enable multigraph support
         const g = new dagre.graphlib.Graph({ multigraph: true })
             .setGraph({ 
                 rankdir: 'TB', 
@@ -91,18 +91,18 @@ class TrieVisualizer {
                         stack.push(child);
                     }
 
-                    // FIX 2: Pass the unique name as the 4th argument to setEdge
+                    // Key must match format in Trie.getTraversalPath
                     const edgeName = `${nodeId}-${childId}-${char}`;
+                    
                     g.setEdge(nodeId, childId, { 
                         label: char,
                         curve: d3.curveBasis,
                         name: edgeName 
-                    }, edgeName); // <--- Vital: passing edgeName here creates the unique edge
+                    }, edgeName);
                 });
             }
         }
 
-        // UPDATE NODE COUNT
         if (this.countElement) {
             this.countElement.innerText = g.nodes().length;
         }
@@ -112,10 +112,7 @@ class TrieVisualizer {
         // Edges
         const edges = g.edges();
         const linkSelection = this.innerG.selectAll(".link-group")
-            .data(edges, d => {
-                // dagre returns {v, w, name} for edges
-                return d.name;
-            });
+            .data(edges, d => d.name);
 
         const linkEnter = linkSelection.enter().append("g")
             .attr("class", "link-group")
@@ -152,8 +149,9 @@ class TrieVisualizer {
             .transition().duration(500)
             .attr("d", d => lineGen(g.edge(d).points))
             .attr("class", d => {
-                const isActive = this.currentPathIds.has(parseInt(d.v)) && this.currentPathIds.has(parseInt(d.w));
-                return isActive ? "link active" : "link";
+                // UPDATED: Check if specific edge key exists in activeData.edges
+                // d.name contains the unique "u-v-char" key
+                return this.activeData.edges.has(d.name) ? "link active" : "link";
             });
 
         linkUpdate.select("text")
@@ -202,7 +200,8 @@ class TrieVisualizer {
         nodeUpdate.each(function(d) {
             const nodeData = g.node(d).data;
             const el = d3.select(this);
-            const isActive = pathIds ? pathIds.has(nodeData.id) : false;
+            // UPDATED: Check nodes set
+            const isActive = activeData.nodes ? activeData.nodes.has(nodeData.id) : false;
 
             el.select(".main-circle").attr("r", isActive ? 22 : 18);
             
@@ -228,13 +227,11 @@ class TrieVisualizer {
     resetZoom() {
         try {
             const bbox = this.innerG.node().getBBox();
-            
             if (bbox.width < 50 && bbox.height < 50) {
                 this.svg.transition().duration(750)
                     .call(this.zoom.transform, d3.zoomIdentity.translate(this.width / 2, 50).scale(1));
                 return;
             }
-
             const scale = Math.min(this.width / bbox.width, this.height / bbox.height) * 0.8;
             const transform = d3.zoomIdentity
                 .translate(this.width / 2, 50)

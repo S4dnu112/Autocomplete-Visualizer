@@ -7,10 +7,11 @@ let minimizedTrie = new DAFSA();
 
 let visualizer;
 let visualizerMini;
-let currentPathIds = new Set();
+
+// State now tracked via objects with nodes/edges sets
+let emptyState = { nodes: new Set(), edges: new Set() };
 
 window.onload = () => {
-    // PASS THE ID FOR THE COUNT DISPLAY HERE
     visualizer = new TrieVisualizer('viz-container', 'node-count-standard');
     visualizerMini = new TrieVisualizer('viz-container-mini', 'node-count-mini');
 
@@ -50,7 +51,7 @@ function submitWordBatch() {
     words = Array.from(new Set(words)).sort();
 
     if (minimizedTrie.previousWord && words[0] < minimizedTrie.previousWord) {
-         if(!confirm("Algorithm 1 requires sorted input. New words are alphabetically before existing ones, which may break the minimization. Reset and add all at once?")) return;
+         if(!confirm("Algorithm 1 requires sorted input. Reset?")) return;
          resetTrie();
     }
 
@@ -78,11 +79,13 @@ function handleInput() {
     const matchEl = document.getElementById('matchesText');
 
     if (inputVal.length > 0) {
+        // Returns { pathIds, activeEdges, isValid }
         const stdResult = trie.getTraversalPath(inputVal);
         const miniResult = minimizedTrie.getTraversalPath(inputVal);
         
-        visualizer.updateGraph(trie, stdResult.pathIds);
-        visualizerMini.updateGraph(minimizedTrie, miniResult.pathIds);
+        // Pass nodes and edges to visualizers
+        visualizer.updateGraph(trie, { nodes: stdResult.pathIds, edges: stdResult.activeEdges });
+        visualizerMini.updateGraph(minimizedTrie, { nodes: miniResult.pathIds, edges: miniResult.activeEdges });
 
         const completions = trie.getCompletions(inputVal);
         if (completions.length > 0) {
@@ -94,20 +97,19 @@ function handleInput() {
         }
     } else {
         matchEl.innerText = "-";
-        visualizer.updateGraph(trie, new Set());
-        visualizerMini.updateGraph(minimizedTrie, new Set());
+        visualizer.updateGraph(trie, emptyState);
+        visualizerMini.updateGraph(minimizedTrie, emptyState);
     }
 }
 
 function updateGraph() {
-    visualizer.updateGraph(trie, new Set());
-    visualizerMini.updateGraph(minimizedTrie, new Set());
+    visualizer.updateGraph(trie, emptyState);
+    visualizerMini.updateGraph(minimizedTrie, emptyState);
 }
 
 function updateWordListUI() {
     const container = document.getElementById('wordList');
     container.innerHTML = '';
-
     const sorted = Array.from(trie.words).sort();
 
     if (sorted.length === 0) {
@@ -127,13 +129,11 @@ function resetTrie() {
     visualizer.initD3();
     visualizerMini.initD3();
 
-    // Reset Count displays explicitly (optional, since initD3 doesn't clear them, but updateGraph will)
     if(document.getElementById('node-count-standard')) document.getElementById('node-count-standard').innerText = '0';
     if(document.getElementById('node-count-mini')) document.getElementById('node-count-mini').innerText = '0';
 
     trie = new Trie();
     minimizedTrie = new DAFSA();
-    currentPathIds.clear();
     
     document.getElementById('bulkWordsInput').value = '';
     document.getElementById('searchInput').value = '';
@@ -141,7 +141,6 @@ function resetTrie() {
     
     setUIState('initial');
     updateWordListUI();
-
     updateGraph();
     document.getElementById('bulkWordsInput').focus();
 }

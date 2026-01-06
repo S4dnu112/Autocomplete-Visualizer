@@ -34,27 +34,36 @@ class Trie {
         node.isEndOfWord = true;
     }
 
+    // UPDATED: Now returns a Set of specific edge keys
     getTraversalPath(prefix) {
         prefix = prefix.toLowerCase();
         let node = this.root;
-        let path = new Set([node.id]);
+        
+        let pathNodes = new Set([node.id]);
+        let pathEdges = new Set();
+        
         let valid = true;
 
         for (let char of prefix) {
             if (node.children[char]) {
-                node = node.children[char];
-                path.add(node.id);
+                const child = node.children[char];
+                
+                pathEdges.add(`${node.id}-${child.id}-${char}`);
+                
+                node = child;
+                pathNodes.add(node.id);
             } else {
                 valid = false;
                 break;
             }
         }
 
+        // Optional: If you want to highlight the subtree of matches
         if (valid) {
-            this._collectSubtreeIds(node, path);
+             this._collectSubtreeIds(node, pathNodes);
         }
 
-        return { pathIds: path, isValid: valid };
+        return { pathIds: pathNodes, activeEdges: pathEdges, isValid: valid };
     }
 
     _collectSubtreeIds(node, set) {
@@ -87,14 +96,13 @@ class Trie {
     }
 
     toHierarchy() {
-        // FIX: Pass the edge label (key) down to the child
         const traverse = (node, edgeLabel) => {
             let children = Object.keys(node.children)
                 .sort()
                 .map(key => traverse(node.children[key], key));
 
             return {
-                name: edgeLabel || 'ROOT', // Use the passed label, not a stored char
+                name: edgeLabel || 'ROOT',
                 id: node.id,
                 isEnd: node.isEndOfWord,
                 isRoot: edgeLabel === undefined,

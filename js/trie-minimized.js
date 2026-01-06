@@ -9,11 +9,6 @@ class DAFSANode {
         this.isEndOfWord = false;
     }
 
-    /**
-     * Generates a unique signature for the node.
-     * Equivalent states must have the same isEndOfWord status and
-     * identical outgoing edges leading to the same target node IDs.
-     */
     getSignature() {
         const edges = Object.keys(this.children)
             .sort()
@@ -27,30 +22,18 @@ class DAFSA {
     constructor() {
         this.nodeIdCounter = 0;
         this.root = new DAFSANode(this.nodeIdCounter++);
-        
-        // The Register: Maps Node Signatures -> Existing Node Instances
         this.register = new Map();
-        
         this.previousWord = "";
     }
 
-    /**
-     * ALGORITHM 1: Construction from Sorted Data
-     * Requires words to be inserted in alphabetical order.
-     */
     insert(word) {
         if (!word) return;
         word = word.toLowerCase();
 
-        // 1. Find the Common Prefix with the previously added word
         const commonPrefixLen = this.getCommonPrefixLength(word, this.previousWord);
-
-        // 2. Minimize the finished suffix of the previous word
         this.minimize(commonPrefixLen);
 
-        // 3. Add the suffix of the new word
         let node = this.getLastNodeOnPath(commonPrefixLen);
-        
         for (let i = commonPrefixLen; i < word.length; i++) {
             const char = word[i];
             const newNode = new DAFSANode(this.nodeIdCounter++);
@@ -58,21 +41,15 @@ class DAFSA {
             node = newNode;
         }
         node.isEndOfWord = true;
-
         this.previousWord = word;
     }
 
-    /**
-     * Finalizes the automaton by minimizing the path of the very last word added.
-     */
     finish() {
         this.minimize(0);
     }
 
     minimize(downTo) {
-        // We traverse the path of the previous word backwards (Postorder)
         let length = this.previousWord.length;
-
         while (length > downTo) {
             const parent = this.getLastNodeOnPath(length - 1);
             const char = this.previousWord[length - 1];
@@ -83,13 +60,10 @@ class DAFSA {
             const signature = child.getSignature();
 
             if (this.register.has(signature)) {
-                // EQUIVALENCE FOUND: Replace the child with the existing node
                 parent.children[char] = this.register.get(signature);
             } else {
-                // UNIQUE STATE: Add to register
                 this.register.set(signature, child);
             }
-
             length--;
         }
     }
@@ -110,11 +84,7 @@ class DAFSA {
         return node;
     }
 
-    // --- Traversal Methods for Visualization ---
-
     toHierarchy() {
-        // FIX: Pass the edge label (key) down to the child
-        // This ensures the visual edge is labeled 't' even if the node was originally created for 'e'
         const traverse = (node, edgeLabel) => {
             let children = Object.keys(node.children)
                 .sort()
@@ -134,18 +104,54 @@ class DAFSA {
     getTraversalPath(prefix) {
         prefix = prefix.toLowerCase();
         let node = this.root;
-        let path = new Set([node.id]);
+        
+        let pathNodes = new Set([node.id]);
+        let pathEdges = new Set(); 
+        
         let valid = true;
 
+        // 1. Trace ONLY the typed prefix
         for (let char of prefix) {
             if (node.children[char]) {
-                node = node.children[char];
-                path.add(node.id);
+                const child = node.children[char];
+                
+                // Add this edge to pathEdges because the user actually typed it
+                pathEdges.add(`${node.id}-${child.id}-${char}`);
+                
+                node = child;
+                pathNodes.add(node.id);
             } else {
                 valid = false;
                 break;
             }
         }
-        return { pathIds: path, isValid: valid };
+
+        // 2. Collect subtree nodes (completions), but DO NOT add their edges
+        if (valid) {
+            this._collectSubtreeIds(node, pathNodes);
+        }
+
+        return { pathIds: pathNodes, activeEdges: pathEdges, isValid: valid };
+    }
+
+    /**
+     * Recursively collects nodes in the subtree.
+     * Updated: No longer adds edges to the active set.
+     */
+    _collectSubtreeIds(node, nodeSet) {
+        if (!node) return;
+
+        Object.keys(node.children).forEach(char => {
+            const child = node.children[char];
+            
+            // We DO NOT add the edge here anymore.
+            // We only traverse to find the nodes.
+
+            // If we haven't visited this child node yet, add it and recurse
+            if (!nodeSet.has(child.id)) {
+                nodeSet.add(child.id);
+                this._collectSubtreeIds(child, nodeSet);
+            }
+        });
     }
 }
