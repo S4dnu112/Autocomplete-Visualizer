@@ -1,6 +1,7 @@
 class TrieVisualizer {
-    constructor(containerId) {
+    constructor(containerId, countElementId) {
         this.container = document.getElementById(containerId);
+        this.countElement = document.getElementById(countElementId);
         this.width = this.container.clientWidth;
         this.height = this.container.clientHeight;
         this.currentPathIds = new Set();
@@ -44,6 +45,7 @@ class TrieVisualizer {
 
         if (!trieStructure || !trieStructure.root) {
             this.innerG.selectAll("*").remove();
+            if (this.countElement) this.countElement.innerText = "0";
             return;
         }
 
@@ -96,6 +98,12 @@ class TrieVisualizer {
                     });
                 });
             }
+        }
+
+        // UPDATE NODE COUNT
+        // g.nodes() returns an array of unique node IDs in the graph
+        if (this.countElement) {
+            this.countElement.innerText = g.nodes().length;
         }
 
         dagre.layout(g);
@@ -220,7 +228,6 @@ class TrieVisualizer {
         try {
             const bbox = this.innerG.node().getBBox();
             
-            // If empty or single root node (small bbox), center explicitly
             if (bbox.width < 50 && bbox.height < 50) {
                 this.svg.transition().duration(750)
                     .call(this.zoom.transform, d3.zoomIdentity.translate(this.width / 2, 50).scale(1));
@@ -235,7 +242,6 @@ class TrieVisualizer {
 
             this.svg.transition().duration(750).call(this.zoom.transform, transform);
         } catch(e) {
-            // Fallback
             this.svg.call(this.zoom.transform, d3.zoomIdentity.translate(this.width/2, 50).scale(1));
         }
     }

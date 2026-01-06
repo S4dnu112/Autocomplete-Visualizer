@@ -3,7 +3,6 @@
 // ========================================
 
 let trie = new Trie();
-// Initialize DAFSA directly
 let minimizedTrie = new DAFSA();
 
 let visualizer;
@@ -11,8 +10,9 @@ let visualizerMini;
 let currentPathIds = new Set();
 
 window.onload = () => {
-    visualizer = new TrieVisualizer('viz-container');
-    visualizerMini = new TrieVisualizer('viz-container-mini');
+    // PASS THE ID FOR THE COUNT DISPLAY HERE
+    visualizer = new TrieVisualizer('viz-container', 'node-count-standard');
+    visualizerMini = new TrieVisualizer('viz-container-mini', 'node-count-mini');
 
     updateWordListUI();
     updateGraph();
@@ -47,15 +47,11 @@ function submitWordBatch() {
         return;
     }
 
-    // ALGORITHM 1 REQUIREMENT: Input must be sorted [cite: 13, 200]
-    // The standard trie doesn't care, but DAFSA does.
     words = Array.from(new Set(words)).sort();
 
-    // Check if new words violate order regarding previously added words
     if (minimizedTrie.previousWord && words[0] < minimizedTrie.previousWord) {
          if(!confirm("Algorithm 1 requires sorted input. New words are alphabetically before existing ones, which may break the minimization. Reset and add all at once?")) return;
-         resetTrie(); // Auto-reset if the user agrees
-         // Re-process the words after reset
+         resetTrie();
     }
 
     words.forEach(w => {
@@ -63,7 +59,6 @@ function submitWordBatch() {
         minimizedTrie.insert(w);
     });
 
-    // FINALIZATION: Must minimize the path of the last word added [cite: 226]
     minimizedTrie.finish();
 
     updateWordListUI();
@@ -83,14 +78,9 @@ function handleInput() {
     const matchEl = document.getElementById('matchesText');
 
     if (inputVal.length > 0) {
-        // Trace path in Standard Trie
         const stdResult = trie.getTraversalPath(inputVal);
-        
-        // Trace path in Minimized Trie (should be logically identical)
         const miniResult = minimizedTrie.getTraversalPath(inputVal);
         
-        // We use the union of IDs to highlight both graphs (though IDs are different counters)
-        // Actually, we need to pass the specific path IDs to the specific visualizer
         visualizer.updateGraph(trie, stdResult.pathIds);
         visualizerMini.updateGraph(minimizedTrie, miniResult.pathIds);
 
@@ -110,7 +100,6 @@ function handleInput() {
 }
 
 function updateGraph() {
-    // Initial draw without highlights
     visualizer.updateGraph(trie, new Set());
     visualizerMini.updateGraph(minimizedTrie, new Set());
 }
@@ -137,6 +126,10 @@ function updateWordListUI() {
 function resetTrie() {
     visualizer.initD3();
     visualizerMini.initD3();
+
+    // Reset Count displays explicitly (optional, since initD3 doesn't clear them, but updateGraph will)
+    if(document.getElementById('node-count-standard')) document.getElementById('node-count-standard').innerText = '0';
+    if(document.getElementById('node-count-mini')) document.getElementById('node-count-mini').innerText = '0';
 
     trie = new Trie();
     minimizedTrie = new DAFSA();
