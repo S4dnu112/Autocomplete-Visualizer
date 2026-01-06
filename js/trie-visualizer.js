@@ -49,7 +49,8 @@ class TrieVisualizer {
             return;
         }
 
-        const g = new dagre.graphlib.Graph()
+        // FIX 1: Enable multigraph support
+        const g = new dagre.graphlib.Graph({ multigraph: true })
             .setGraph({ 
                 rankdir: 'TB', 
                 nodesep: 30, 
@@ -90,18 +91,18 @@ class TrieVisualizer {
                         stack.push(child);
                     }
 
+                    // FIX 2: Pass the unique name as the 4th argument to setEdge
                     const edgeName = `${nodeId}-${childId}-${char}`;
                     g.setEdge(nodeId, childId, { 
                         label: char,
                         curve: d3.curveBasis,
                         name: edgeName 
-                    });
+                    }, edgeName); // <--- Vital: passing edgeName here creates the unique edge
                 });
             }
         }
 
         // UPDATE NODE COUNT
-        // g.nodes() returns an array of unique node IDs in the graph
         if (this.countElement) {
             this.countElement.innerText = g.nodes().length;
         }
@@ -112,8 +113,8 @@ class TrieVisualizer {
         const edges = g.edges();
         const linkSelection = this.innerG.selectAll(".link-group")
             .data(edges, d => {
-                const edge = g.edge(d);
-                return edge.name || `${d.v}-${d.w}`;
+                // dagre returns {v, w, name} for edges
+                return d.name;
             });
 
         const linkEnter = linkSelection.enter().append("g")
