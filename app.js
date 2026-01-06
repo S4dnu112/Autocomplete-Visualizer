@@ -135,6 +135,9 @@ function updateWordListUI() {
 }
 
 function resetTrie() {
+    visualizer.initD3();
+    visualizerMini.initD3();
+
     trie = new Trie();
     minimizedTrie = new DAFSA();
     currentPathIds.clear();
@@ -145,9 +148,8 @@ function resetTrie() {
     
     setUIState('initial');
     updateWordListUI();
+
     updateGraph();
-    visualizer.resetZoom();
-    visualizerMini.resetZoom();
     document.getElementById('bulkWordsInput').focus();
 }
 

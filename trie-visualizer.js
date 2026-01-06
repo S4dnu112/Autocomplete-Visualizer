@@ -1,24 +1,20 @@
-// ========================================
-// TRIE VISUALIZER (Handles Trees & DAGs)
-// ========================================
-
 class TrieVisualizer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.width = this.container.clientWidth;
         this.height = this.container.clientHeight;
         this.currentPathIds = new Set();
+        this.hasCentered = false;
         this.initD3();
     }
 
     initD3() {
-        // Clear previous SVG if any
         d3.select(this.container).select("svg").remove();
 
         this.zoom = d3.zoom()
-            .scaleExtent([0.1, 3])
+            .scaleExtent([0.1, 2])
             .on("zoom", (event) => {
-                this.g.attr("transform", event.transform);
+                this.innerG.attr("transform", event.transform);
             });
 
         this.svg = d3.select(this.container).append("svg")
@@ -26,149 +22,221 @@ class TrieVisualizer {
             .attr("height", "100%")
             .call(this.zoom);
 
-        this.g = this.svg.append("g")
-            .attr("transform", `translate(${this.width / 2}, 50)`);
-
-        // Widen the separation to allow space for merging nodes
-        this.treeLayout = d3.tree()
-            .nodeSize([60, 80])
-            .separation((a, b) => (a.parent == b.parent ? 1.2 : 1.5));
+        this.innerG = this.svg.append("g");
+        
+        this.svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 20)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#cbd5e1");
+            
+        this.hasCentered = false;
     }
 
-    updateGraph(trie, pathIds) {
+    updateGraph(trieStructure, pathIds) {
         this.currentPathIds = pathIds || new Set();
-        const rootData = trie.toHierarchy();
-        const root = d3.hierarchy(rootData);
 
-        // 1. Run the standard Tree Layout calculation
-        this.treeLayout(root);
+        if (!trieStructure || !trieStructure.root) {
+            this.innerG.selectAll("*").remove();
+            return;
+        }
 
-        // 2. DAG MERGE LOGIC
-        // D3 Tree creates a separate object for every path.
-        // We need to group them by 'd.data.id' and merge their positions.
-        const nodesById = new Map();
+        const g = new dagre.graphlib.Graph()
+            .setGraph({ 
+                rankdir: 'TB', 
+                nodesep: 30, 
+                ranksep: 50, 
+                marginx: 20, 
+                marginy: 20 
+            })
+            .setDefaultEdgeLabel(() => ({}));
 
-        root.descendants().forEach(d => {
-            const id = d.data.id;
-            if (!nodesById.has(id)) {
-                nodesById.set(id, []);
-            }
-            nodesById.get(id).push(d);
+        const visited = new Set();
+        const stack = [trieStructure.root];
+        
+        g.setNode(trieStructure.root.id.toString(), { 
+            label: 'ROOT', 
+            width: 40, 
+            height: 40, 
+            data: trieStructure.root 
         });
+        visited.add(trieStructure.root.id);
 
-        // Compute the average X coordinate for every Node ID
-        const finalNodes = [];
-        nodesById.forEach((instances, id) => {
-            // Average X
-            const avgX = instances.reduce((sum, d) => sum + d.x, 0) / instances.length;
-            const avgY = instances[0].y; // Y (depth) should be consistent
+        while (stack.length > 0) {
+            const node = stack.pop();
+            const nodeId = node.id.toString();
 
-            // Update ALL instances to this new position so links follow
-            instances.forEach(d => {
-                d.x = avgX;
-                d.y = avgY;
+            if (node.children) {
+                Object.keys(node.children).sort().forEach(char => {
+                    const child = node.children[char];
+                    const childId = child.id.toString();
+
+                    if (!visited.has(child.id)) {
+                        g.setNode(childId, { 
+                            label: `Q${child.id}`, 
+                            width: 40, 
+                            height: 40, 
+                            data: child 
+                        });
+                        visited.add(child.id);
+                        stack.push(child);
+                    }
+
+                    const edgeName = `${nodeId}-${childId}-${char}`;
+                    g.setEdge(nodeId, childId, { 
+                        label: char,
+                        curve: d3.curveBasis,
+                        name: edgeName 
+                    });
+                });
+            }
+        }
+
+        dagre.layout(g);
+
+        // Edges
+        const edges = g.edges();
+        const linkSelection = this.innerG.selectAll(".link-group")
+            .data(edges, d => {
+                const edge = g.edge(d);
+                return edge.name || `${d.v}-${d.w}`;
             });
 
-            // Push just one representative for drawing the circle
-            finalNodes.push(instances[0]);
-        });
-
-        // 3. Generate Links
-        // We must draw links from the (now moved) source to the (now moved) target.
-        // We use a Map to ensure we don't draw the same visual edge twice.
-        const uniqueLinks = new Map();
-        
-        root.links().forEach(link => {
-            const sourceId = link.source.data.id;
-            const targetId = link.target.data.id;
-            const label = link.target.data.name;
-            const key = `${sourceId}-${targetId}-${label}`;
-
-            if (!uniqueLinks.has(key)) {
-                uniqueLinks.set(key, link);
-            }
-        });
-        const finalLinks = Array.from(uniqueLinks.values());
-
-        // --- DRAWING ---
-
-        // Draw Links (Straight lines look better for merged graphs)
-        const linkGroups = this.g.selectAll(".link-group")
-            .data(finalLinks, d => `${d.source.data.id}-${d.target.data.id}-${d.target.data.name}`);
-
-        const linkEnter = linkGroups.enter().append("g")
+        const linkEnter = linkSelection.enter().append("g")
             .attr("class", "link-group")
             .attr("opacity", 0);
 
+        const lineGen = d3.line()
+            .x(d => d.x)
+            .y(d => d.y)
+            .curve(d3.curveBasis);
+
         linkEnter.append("path")
             .attr("class", "link")
-            .attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`);
+            .attr("marker-end", "url(#arrowhead)")
+            .attr("d", d => lineGen(g.edge(d).points));
 
         linkEnter.append("text")
             .attr("class", "edge-label")
-            .attr("dy", "0.35em")
+            .attr("dy", "-3")
             .attr("text-anchor", "middle")
-            .text(d => d.target.data.name)
-            .attr("x", d => (d.source.x + d.target.x) / 2)
-            .attr("y", d => (d.source.y + d.target.y) / 2);
+            .text(d => g.edge(d).label)
+            .attr("x", d => {
+                const points = g.edge(d).points;
+                return points[Math.floor(points.length / 2)].x;
+            })
+            .attr("y", d => {
+                const points = g.edge(d).points;
+                return points[Math.floor(points.length / 2)].y;
+            });
 
-        const linkUpdate = linkEnter.merge(linkGroups);
+        const linkUpdate = linkEnter.merge(linkSelection);
         linkUpdate.transition().duration(500).attr("opacity", 1);
         
         linkUpdate.select("path")
             .transition().duration(500)
-            .attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`)
+            .attr("d", d => lineGen(g.edge(d).points))
             .attr("class", d => {
-                const isActive = this.currentPathIds.has(d.source.data.id) && this.currentPathIds.has(d.target.data.id);
+                const isActive = this.currentPathIds.has(parseInt(d.v)) && this.currentPathIds.has(parseInt(d.w));
                 return isActive ? "link active" : "link";
             });
 
         linkUpdate.select("text")
             .transition().duration(500)
-            .attr("x", d => (d.source.x + d.target.x) / 2)
-            .attr("y", d => (d.source.y + d.target.y) / 2);
+            .attr("x", d => {
+                const pts = g.edge(d).points;
+                return pts[Math.floor(pts.length/2)].x;
+            })
+            .attr("y", d => {
+                const pts = g.edge(d).points;
+                return pts[Math.floor(pts.length/2)].y;
+            });
 
-        linkGroups.exit().remove();
+        linkSelection.exit().transition().duration(200).attr("opacity", 0).remove();
 
-        // Draw Nodes
-        const nodes = this.g.selectAll(".node")
-            .data(finalNodes, d => d.data.id);
+        // Nodes
+        const nodes = g.nodes();
+        const nodeSelection = this.innerG.selectAll(".node")
+            .data(nodes, d => d);
 
-        const nodeEnter = nodes.enter().append("g")
+        const nodeEnter = nodeSelection.enter().append("g")
             .attr("class", "node")
-            .attr("transform", d => `translate(${d.x},${d.y})`)
+            .attr("transform", d => {
+                const node = g.node(d);
+                return `translate(${node.x},${node.y})`;
+            })
             .style("opacity", 0);
 
         nodeEnter.append("circle").attr("class", "main-circle").attr("r", 18);
         nodeEnter.append("circle").attr("class", "inner-ring").attr("r", 0);
-        nodeEnter.append("text").attr("dy", "0.35em").text(d => `Q${d.data.id}`);
-
-        const nodeUpdate = nodeEnter.merge(nodes);
-        nodeUpdate.transition().duration(500)
-            .attr("transform", d => `translate(${d.x},${d.y})`)
-            .style("opacity", 1);
-
-        nodeUpdate.select(".main-circle")
-            .attr("r", d => this.currentPathIds.has(d.data.id) ? 22 : 18);
-
-        nodeUpdate.select(".inner-ring")
-            .attr("r", d => {
-                if (!d.data.isEnd) return 0;
-                return this.currentPathIds.has(d.data.id) ? 18 : 14;
+        nodeEnter.append("text")
+            .attr("dy", "0.35em")
+            .text(d => {
+                const node = g.node(d);
+                return node.label === 'ROOT' ? 'R' : node.label;
             });
 
-        nodeUpdate.attr("class", d => {
-            let classes = ["node"];
-            if (d.data.isEnd) classes.push("is-end");
-            if (this.currentPathIds.has(d.data.id)) classes.push("active");
-            return classes.join(" ");
+        const nodeUpdate = nodeEnter.merge(nodeSelection);
+        nodeUpdate.transition().duration(500)
+            .attr("transform", d => {
+                const node = g.node(d);
+                return `translate(${node.x},${node.y})`;
+            })
+            .style("opacity", 1);
+
+        nodeUpdate.each(function(d) {
+            const nodeData = g.node(d).data;
+            const el = d3.select(this);
+            const isActive = pathIds ? pathIds.has(nodeData.id) : false;
+
+            el.select(".main-circle").attr("r", isActive ? 22 : 18);
+            
+            el.select(".inner-ring").attr("r", () => {
+                if (!nodeData.isEndOfWord) return 0;
+                return isActive ? 18 : 14;
+            });
+
+            let classes = "node";
+            if (nodeData.isEndOfWord) classes += " is-end";
+            if (isActive) classes += " active";
+            el.attr("class", classes);
         });
 
-        nodes.exit().transition().duration(300).style("opacity", 0).remove();
+        nodeSelection.exit().transition().duration(200).attr("opacity", 0).remove();
+        
+        if(!this.hasCentered) {
+            this.resetZoom();
+            this.hasCentered = true;
+        }
     }
 
     resetZoom() {
-        this.svg.transition().duration(750)
-            .call(this.zoom.transform, d3.zoomIdentity.translate(this.width / 2, 50).scale(1));
+        try {
+            const bbox = this.innerG.node().getBBox();
+            
+            // If empty or single root node (small bbox), center explicitly
+            if (bbox.width < 50 && bbox.height < 50) {
+                this.svg.transition().duration(750)
+                    .call(this.zoom.transform, d3.zoomIdentity.translate(this.width / 2, 50).scale(1));
+                return;
+            }
+
+            const scale = Math.min(this.width / bbox.width, this.height / bbox.height) * 0.8;
+            const transform = d3.zoomIdentity
+                .translate(this.width / 2, 50)
+                .scale(Math.min(scale, 1)) 
+                .translate(-bbox.x - bbox.width/2, 0);
+
+            this.svg.transition().duration(750).call(this.zoom.transform, transform);
+        } catch(e) {
+            // Fallback
+            this.svg.call(this.zoom.transform, d3.zoomIdentity.translate(this.width/2, 50).scale(1));
+        }
     }
 }
