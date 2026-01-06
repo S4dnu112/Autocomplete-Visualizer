@@ -2,8 +2,8 @@
 // APPLICATION LOGIC
 // ========================================
 
-let trie = new Trie();
-let minimizedTrie = new DAFSA();
+let trie_unminimized = new Trie();
+let dafsa_minimized = new DAFSA();
 
 let visualizer;
 let visualizerMini;
@@ -12,8 +12,8 @@ let visualizerMini;
 let emptyState = { nodes: new Set(), edges: new Set() };
 
 window.onload = () => {
-    visualizer = new TrieVisualizer('viz-container', 'node-count-standard');
-    visualizerMini = new TrieVisualizer('viz-container-mini', 'node-count-mini');
+    visualizer = new DagVisualizer('viz-container', 'node-count-standard');
+    visualizerMini = new DagVisualizer('viz-container-mini', 'node-count-mini');
 
     updateWordListUI();
     updateGraph();
@@ -49,18 +49,12 @@ function submitWordBatch() {
     }
 
     words = Array.from(new Set(words)).sort();
-
-    if (minimizedTrie.previousWord && words[0] < minimizedTrie.previousWord) {
-         if(!confirm("Algorithm 1 requires sorted input. Reset?")) return;
-         resetTrie();
-    }
-
     words.forEach(w => {
-        trie.insert(w);
-        minimizedTrie.insert(w);
+        trie_unminimized.insert(w);
+        dafsa_minimized.insert(w);
     });
 
-    minimizedTrie.finish();
+    dafsa_minimized.finish();
 
     updateWordListUI();
     updateGraph();
@@ -80,14 +74,14 @@ function handleInput() {
 
     if (inputVal.length > 0) {
         // Returns { pathIds, activeEdges, isValid }
-        const stdResult = trie.getTraversalPath(inputVal);
-        const miniResult = minimizedTrie.getTraversalPath(inputVal);
+        const stdResult = trie_unminimized.getTraversalPath(inputVal);
+        const miniResult = dafsa_minimized.getTraversalPath(inputVal);
         
         // Pass nodes and edges to visualizers
-        visualizer.updateGraph(trie, { nodes: stdResult.pathIds, edges: stdResult.activeEdges });
-        visualizerMini.updateGraph(minimizedTrie, { nodes: miniResult.pathIds, edges: miniResult.activeEdges });
+        visualizer.updateGraph(trie_unminimized, { nodes: stdResult.pathIds, edges: stdResult.activeEdges });
+        visualizerMini.updateGraph(dafsa_minimized, { nodes: miniResult.pathIds, edges: miniResult.activeEdges });
 
-        const completions = trie.getCompletions(inputVal);
+        const completions = trie_unminimized.getCompletions(inputVal);
         if (completions.length > 0) {
             matchEl.innerHTML = completions.map(word =>
                 `<span class="cursor-pointer hover:underline hover:text-indigo-800 font-bold transition-colors" onclick="selectMatch('${word}')">${word}</span>`
@@ -97,20 +91,20 @@ function handleInput() {
         }
     } else {
         matchEl.innerText = "-";
-        visualizer.updateGraph(trie, emptyState);
-        visualizerMini.updateGraph(minimizedTrie, emptyState);
+        visualizer.updateGraph(trie_unminimized, emptyState);
+        visualizerMini.updateGraph(dafsa_minimized, emptyState);
     }
 }
 
 function updateGraph() {
-    visualizer.updateGraph(trie, emptyState);
-    visualizerMini.updateGraph(minimizedTrie, emptyState);
+    visualizer.updateGraph(trie_unminimized, emptyState);
+    visualizerMini.updateGraph(dafsa_minimized, emptyState);
 }
 
 function updateWordListUI() {
     const container = document.getElementById('wordList');
     container.innerHTML = '';
-    const sorted = Array.from(trie.words).sort();
+    const sorted = Array.from(trie_unminimized.words).sort();
 
     if (sorted.length === 0) {
         container.innerHTML = '<span class="text-gray-400 text-xs">No words submitted.</span>';
@@ -132,8 +126,8 @@ function resetTrie() {
     if(document.getElementById('node-count-standard')) document.getElementById('node-count-standard').innerText = '0';
     if(document.getElementById('node-count-mini')) document.getElementById('node-count-mini').innerText = '0';
 
-    trie = new Trie();
-    minimizedTrie = new DAFSA();
+    trie_unminimized = new Trie();
+    dafsa_minimized = new DAFSA();
     
     document.getElementById('bulkWordsInput').value = '';
     document.getElementById('searchInput').value = '';

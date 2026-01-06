@@ -18,8 +18,6 @@ class Trie {
     }
 
     insert(word) {
-        if (!word) return;
-        word = word.toLowerCase();
         if (this.words.has(word)) return;
 
         this.words.add(word);
@@ -34,7 +32,6 @@ class Trie {
         node.isEndOfWord = true;
     }
 
-    // UPDATED: Now returns a Set of specific edge keys
     getTraversalPath(prefix) {
         prefix = prefix.toLowerCase();
         let node = this.root;
@@ -57,8 +54,7 @@ class Trie {
                 break;
             }
         }
-
-        // Optional: If you want to highlight the subtree of matches
+        // highlight the subtree (node only) of matches
         if (valid) {
              this._collectSubtreeIds(node, pathNodes);
         }

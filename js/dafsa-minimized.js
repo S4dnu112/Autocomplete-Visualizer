@@ -27,9 +27,6 @@ class DAFSA {
     }
 
     insert(word) {
-        if (!word) return;
-        word = word.toLowerCase();
-
         const commonPrefixLen = this.getCommonPrefixLength(word, this.previousWord);
         this.minimize(commonPrefixLen);
 
@@ -125,8 +122,7 @@ class DAFSA {
                 break;
             }
         }
-
-        // 2. Collect subtree nodes (completions), but DO NOT add their edges
+        // highlight the subtree (node only) of matches
         if (valid) {
             this._collectSubtreeIds(node, pathNodes);
         }
@@ -134,18 +130,11 @@ class DAFSA {
         return { pathIds: pathNodes, activeEdges: pathEdges, isValid: valid };
     }
 
-    /**
-     * Recursively collects nodes in the subtree.
-     * Updated: No longer adds edges to the active set.
-     */
     _collectSubtreeIds(node, nodeSet) {
         if (!node) return;
 
         Object.keys(node.children).forEach(char => {
             const child = node.children[char];
-            
-            // We DO NOT add the edge here anymore.
-            // We only traverse to find the nodes.
 
             // If we haven't visited this child node yet, add it and recurse
             if (!nodeSet.has(child.id)) {

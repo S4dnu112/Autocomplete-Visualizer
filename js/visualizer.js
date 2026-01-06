@@ -1,4 +1,4 @@
-class TrieVisualizer {
+class DagVisualizer {
     constructor(containerId, countElementId) {
         this.container = document.getElementById(containerId);
         this.countElement = document.getElementById(countElementId);
@@ -40,7 +40,7 @@ class TrieVisualizer {
         this.hasCentered = false;
     }
 
-    // UPDATED: Expects { nodes: Set, edges: Set }
+    // Expects { nodes: Set, edges: Set }
     updateGraph(trieStructure, activeData) {
         this.activeData = activeData || { nodes: new Set(), edges: new Set() };
 
@@ -149,7 +149,7 @@ class TrieVisualizer {
             .transition().duration(500)
             .attr("d", d => lineGen(g.edge(d).points))
             .attr("class", d => {
-                // UPDATED: Check if specific edge key exists in activeData.edges
+                // Check if specific edge key exists in activeData.edges
                 // d.name contains the unique "u-v-char" key
                 return this.activeData.edges.has(d.name) ? "link active" : "link";
             });
