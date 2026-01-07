@@ -45,7 +45,7 @@ class DAFSA {
         this.minimize(0);
     }
 
-    minimize(downTo) {
+    minimize(downTo) { // or rather upTo if we're looking at a tree
         let length = this.previousWord.length;
         while (length > downTo) {
             const parent = this.getLastNodeOnPath(length - 1);
@@ -81,23 +81,6 @@ class DAFSA {
         return node;
     }
 
-    toHierarchy() {
-        const traverse = (node, edgeLabel) => {
-            let children = Object.keys(node.children)
-                .sort()
-                .map(key => traverse(node.children[key], key));
-
-            return {
-                name: edgeLabel || 'ROOT',
-                id: node.id,
-                isEnd: node.isEndOfWord,
-                isRoot: edgeLabel === undefined,
-                children: children.length > 0 ? children : null
-            };
-        };
-        return traverse(this.root);
-    }
-
     getTraversalPath(prefix) {
         prefix = prefix.toLowerCase();
         let node = this.root;
@@ -112,7 +95,6 @@ class DAFSA {
             if (node.children[char]) {
                 const child = node.children[char];
                 
-                // Add this edge to pathEdges because the user actually typed it
                 pathEdges.add(`${node.id}-${child.id}-${char}`);
                 
                 node = child;

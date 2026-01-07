@@ -44,7 +44,7 @@ class Trie {
         for (let char of prefix) {
             if (node.children[char]) {
                 const child = node.children[char];
-                
+                // ex. "0-1-a"
                 pathEdges.add(`${node.id}-${child.id}-${char}`);
                 
                 node = child;
@@ -56,7 +56,7 @@ class Trie {
         }
         // highlight the subtree (node only) of matches
         if (valid) {
-             this._collectSubtreeIds(node, pathNodes);
+            this._collectSubtreeIds(node, pathNodes);
         }
 
         return { pathIds: pathNodes, activeEdges: pathEdges, isValid: valid };
@@ -89,22 +89,5 @@ class Trie {
             results = results.concat(this._collectWords(node.children[char], currentWord + char));
         }
         return results;
-    }
-
-    toHierarchy() {
-        const traverse = (node, edgeLabel) => {
-            let children = Object.keys(node.children)
-                .sort()
-                .map(key => traverse(node.children[key], key));
-
-            return {
-                name: edgeLabel || 'ROOT',
-                id: node.id,
-                isEnd: node.isEndOfWord,
-                isRoot: edgeLabel === undefined,
-                children: children.length > 0 ? children : null
-            };
-        };
-        return traverse(this.root);
     }
 }

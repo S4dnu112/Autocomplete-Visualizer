@@ -15,10 +15,9 @@ window.onload = () => {
     visualizer = new DagVisualizer('viz-container', 'node-count-standard');
     visualizerMini = new DagVisualizer('viz-container-mini', 'node-count-mini');
 
-    updateWordListUI();
-    updateGraph();
-    visualizer.resetZoom();
-
+    updateGraph();  // renders root node first hand
+    resetView();
+    
     document.getElementById('submitWordsBtn').addEventListener('click', submitWordBatch);
     document.getElementById('resetBtnTop').addEventListener('click', resetTrie);
     document.getElementById('resetViewBtn').addEventListener('click', resetView);
@@ -61,6 +60,8 @@ function submitWordBatch() {
     
     setUIState('submitted');
     document.getElementById('searchInput').focus();
+
+    resetView();
 }
 
 window.selectMatch = function (word) {
@@ -106,11 +107,6 @@ function updateWordListUI() {
     container.innerHTML = '';
     const sorted = Array.from(trie_unminimized.words).sort();
 
-    if (sorted.length === 0) {
-        container.innerHTML = '<span class="text-gray-400 text-xs">No words submitted.</span>';
-        return;
-    }
-
     sorted.forEach(word => {
         const badge = document.createElement('span');
         badge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200";
@@ -137,6 +133,7 @@ function resetTrie() {
     updateWordListUI();
     updateGraph();
     document.getElementById('bulkWordsInput').focus();
+    resetView();
 }
 
 function resetView() {
